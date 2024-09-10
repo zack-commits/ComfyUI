@@ -174,11 +174,11 @@ class PromptServer():
             width = data.pop("width", 1024)
             height = data.pop("height", 1024)
 
-            prompt["11"]["inputs"]["text"] = character
-            prompt["12"]["inputs"]["batch_size"] = batch_size
-            prompt["12"]["inputs"]["width"] = width
-            prompt["12"]["inputs"]["height"] = height
-            prompt["13"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
+            prompt["18"]["inputs"]["text"] = character
+            prompt["5"]["inputs"]["batch_size"] = batch_size
+            prompt["5"]["inputs"]["width"] = width
+            prompt["5"]["inputs"]["height"] = height
+            # prompt["13"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
 
             server_address = "127.0.0.1:8188"
             client_id = str(uuid.uuid4())
