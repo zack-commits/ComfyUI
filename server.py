@@ -160,7 +160,7 @@ class PromptServer():
         async def flux_txt2img(request):
             data = await request.json()
             workflow_name = data.pop("workflow_name", "workflow.json")
-            workflow_pth = os.path.join("/", workflow_name)
+            workflow_pth = os.path.join("/repository", workflow_name)
 
             if os.path.exists(workflow_pth):
                 with open(workflow_pth, "r") as file:
