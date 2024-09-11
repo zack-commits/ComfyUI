@@ -223,9 +223,6 @@ class PromptServer():
                     result.append({"image_base64": img_base64, "index": idx})
             return web.json_response(result)
 
-        @routes.post("/flux_img2img")
-        async def flux_img2img(request):
-
         @routes.get('/ws')
         async def websocket_handler(request):
             ws = web.WebSocketResponse()
