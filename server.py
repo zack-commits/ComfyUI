@@ -159,7 +159,7 @@ class PromptServer():
         @routes.post("/flux_txt2img")
         async def flux_txt2img(request):
             data = await request.json()
-            workflow_name = data.pop("workflow_name", "workflow.json")
+            workflow_name = data.pop("workflow_name", "v2_FLUX_D_model_Q8_clip_Q8.json")
             workflow_pth = os.path.join("/repository", workflow_name)
 
             if os.path.exists(workflow_pth):
@@ -174,43 +174,44 @@ class PromptServer():
             width = data.pop("width", 1024)
             height = data.pop("height", 1024)
 
-            prompt["93"]["inputs"]["text"] = character
-            prompt["89"]["inputs"]["batch_size"] = batch_size
-            prompt["89"]["inputs"]["width"] = width
-            prompt["89"]["inputs"]["height"] = height
-            prompt["86"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
+            prompt["11"]["inputs"]["text"] = character
+            prompt["12"]["inputs"]["batch_size"] = batch_size
+            prompt["12"]["inputs"]["width"] = width
+            prompt["12"]["inputs"]["height"] = height
+            prompt["13"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
 
+            # 数据传递
             server_address = "127.0.0.1:8188"
             client_id = str(uuid.uuid4())
-            websocket_url = f"ws://{server_address}/ws?clientId={client_id}"
+            p = {"prompt": prompt, "client_id": client_id}
 
-            async with self.client_session.ws_connect(websocket_url) as ws:
-                p = {"prompt": prompt, "client_id": client_id}
-
-                async with self.client_session.post(f'http://{server_address}/prompt', json=p) as resp:
-                    if resp.status != 200:
-                        return web.json_response({"error": "Failed to queue prompt"}, status=resp.status)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(f'http://{server_address}/prompt', json=p) as resp:
                     queue_info = await resp.json()
 
-                prompt_id = queue_info['prompt_id']
-                output_images = {}
-                current_node = ""
-                async for msg in ws:
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        message = json.loads(msg.data)
-                        if message['type'] == 'executing':
-                            data = message['data']
-                            if data['prompt_id'] == prompt_id:
-                                if data['node'] is None:
-                                    break  # 执行结束
-                                else:
-                                    current_node = data['node']
-                    else:
-                        # 处理图片数据
-                        if current_node == save_websocket_node_id:
-                            images_output = output_images.get(current_node, [])
-                            images_output.append(msg.data[8:])  # 假设图片数据从第8字节开始
-                            output_images[current_node] = images_output
+                # Step 2: 通过 WebSocket 与 /ws 路由通信
+                websocket_url = f"ws://{server_address}/ws?clientId={client_id}"
+                async with session.ws_connect(websocket_url) as ws:
+                    prompt_id = queue_info['prompt_id']
+                    output_images = {}
+                    current_node = ""
+
+                    async for msg in ws:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            message = json.loads(msg.data)
+                            if message['type'] == 'executing':
+                                data = message['data']
+                                if data['prompt_id'] == prompt_id:
+                                    if data['node'] is None:
+                                        break  # 执行结束
+                                    else:
+                                        current_node = data['node']
+                        else:
+                            # 处理图片数据
+                            if current_node == save_websocket_node_id:
+                                images_output = output_images.get(current_node, [])
+                                images_output.append(msg.data[8:])  # 假设图片数据从第8字节开始
+                                output_images[current_node] = images_output
 
             result = []
             for node_id in output_images:
@@ -225,75 +226,6 @@ class PromptServer():
         @routes.post("/flux_img2img")
         async def flux_img2img(request):
 
-            data = await request.json()
-            workflow_name = data.pop("workflow_name", "v2_FLUX_D_model_Q8_clip_Q8_IMG_TO_MG.json")
-            workflow_pth = os.path.join("/repository", workflow_name)
-
-            if os.path.exists(workflow_pth):
-                with open(workflow_pth, "r") as file:
-                    prompt = json.load(file)
-                    save_websocket_node_id = "22"
-            else:
-                return web.json_response({"error": "workflow file not found"}, status=404)
-
-            character = data.pop("prompt", "")
-            denoise = data.pop("denoise", "0.85")
-
-            img_name = data.pop("img_name", "")
-            img_base64 = data.pop("img_base64", "")
-            img_save_pth = '/app/ComfyUI/input'
-
-            img_data = base64.b64decode(img_base64)
-            img = Image.open(io.BytesIO(img_data))
-            img.save(os.path.join(img_save_pth, img_name))
-
-            prompt["11"]["inputs"]["text"] = character
-            prompt["13"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
-            prompt["21"]["inputs"]["image"] = img_name
-            prompt["15"]["inputs"]["denoise"] = denoise
-
-            server_address = "127.0.0.1:8188"
-            client_id = str(uuid.uuid4())
-            websocket_url = f"ws://{server_address}/ws?clientId={client_id}"
-
-            async with self.client_session.ws_connect(websocket_url) as ws:
-                p = {"prompt": prompt, "client_id": client_id}
-
-                async with self.client_session.post(f'http://{server_address}/prompt', json=p) as resp:
-                    if resp.status != 200:
-                        return web.json_response({"error": "Failed to queue prompt"}, status=resp.status)
-                    queue_info = await resp.json()
-
-                prompt_id = queue_info['prompt_id']
-                output_images = {}
-                current_node = ""
-                async for msg in ws:
-                    if msg.type == aiohttp.WSMsgType.TEXT:
-                        message = json.loads(msg.data)
-                        if message['type'] == 'executing':
-                            data = message['data']
-                            if data['prompt_id'] == prompt_id:
-                                if data['node'] is None:
-                                    break  # 执行结束
-                                else:
-                                    current_node = data['node']
-                    else:
-                        # 处理图片数据
-                        if current_node == save_websocket_node_id:
-                            images_output = output_images.get(current_node, [])
-                            images_output.append(msg.data[8:])  # 假设图片数据从第8字节开始
-                            output_images[current_node] = images_output
-
-            result = []
-            for node_id in output_images:
-                for idx, image_data in enumerate(output_images[node_id]):
-                    image = Image.open(io.BytesIO(image_data))
-                    buffered = io.BytesIO()
-                    image.save(buffered, format="PNG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-                    result.append({"image_base64": img_base64, "index": idx})
-            return web.json_response(result)
-        
         @routes.get('/ws')
         async def websocket_handler(request):
             ws = web.WebSocketResponse()
