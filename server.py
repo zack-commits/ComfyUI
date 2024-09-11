@@ -159,8 +159,8 @@ class PromptServer():
         @routes.post("/flux_txt2img")
         async def flux_txt2img(request):
             data = await request.json()
-            workflow_name = data.pop("workflow_name", "v2_FLUX_D_model_Q8_clip_Q8.json")
-            workflow_pth = os.path.join("/home/ec2-user/workspace", workflow_name)
+            workflow_name = data.pop("workflow_name", "workflow.json")
+            workflow_pth = os.path.join("/", workflow_name)
 
             if os.path.exists(workflow_pth):
                 with open(workflow_pth, "r") as file:
@@ -174,11 +174,11 @@ class PromptServer():
             width = data.pop("width", 1024)
             height = data.pop("height", 1024)
 
-            prompt["18"]["inputs"]["text"] = character
-            prompt["5"]["inputs"]["batch_size"] = batch_size
-            prompt["5"]["inputs"]["width"] = width
-            prompt["5"]["inputs"]["height"] = height
-            # prompt["13"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
+            prompt["93"]["inputs"]["text"] = character
+            prompt["89"]["inputs"]["batch_size"] = batch_size
+            prompt["89"]["inputs"]["width"] = width
+            prompt["89"]["inputs"]["height"] = height
+            prompt["86"]["inputs"]["noise_seed"] = random.randint(1, 10000000)
 
             server_address = "127.0.0.1:8188"
             client_id = str(uuid.uuid4())
@@ -293,8 +293,7 @@ class PromptServer():
                     img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
                     result.append({"image_base64": img_base64, "index": idx})
             return web.json_response(result)
-    
-
+        
         @routes.get('/ws')
         async def websocket_handler(request):
             ws = web.WebSocketResponse()
